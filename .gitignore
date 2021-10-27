@@ -1,0 +1,8 @@
+venv*
+.DS_Store
+.pyc
+.idea
+.ipynb_checkpoints
+*.tsv
+__pycache__
+!sample-dataset-*.tsv
