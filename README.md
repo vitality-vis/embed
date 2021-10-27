@@ -1,4 +1,4 @@
-# embed: create document embeddings
+# vitaLITy: creating GloVe and Specter document embeddings
 
 ## Requirements
 
