@@ -48,4 +48,4 @@ The software is available under the [MIT License](https://github.com/vitality-vi
 
 
 ### Contact
-If you have any questions, feel free to [open an issue](https://github.com/vitality-vis/embed/issues/new/choose) or contact [Arpit Narechania](https://www.cc.gatech.edu/~anarechania3).
+If you have any questions, feel free to [open an issue](https://github.com/vitality-vis/embed/issues/new/choose) or contact [Arpit Narechania](https://arpitnarechania.github.io).
