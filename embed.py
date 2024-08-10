@@ -10,6 +10,7 @@ from typing import Dict, List
 import json
 import requests
 import os
+import re
 import ast
 import seaborn as sns
 from transformers import AutoTokenizer, AutoModel
@@ -20,9 +21,8 @@ df_master = pd.read_csv(config.input_data_path, sep='\t')
 
 # Drop NAs for the given columns
 target_column_subset = ['title_processed', 'author', 'source', 'year', 'abstract_processed', 'keywords_processed']
-df_subset = df_master.dropna(subset=target_column_subset)
-df_subset = df_subset[target_column_subset]
-df_subset.columns = ['Title','Authors','Conference','Year','Abstract','Keywords']
+df_subset = df_master[target_column_subset]
+df_subset = df_subset.rename(columns={'title_processed': 'Title', 'author': 'Authors', 'source': 'Source', 'year': 'Year', 'abstract_processed': 'Abstract', 'keywords_processed': 'Keywords'})
 
 df_subset["Authors"] = df_subset["Authors"].apply(lambda x: ast.literal_eval(x) if type(x) == str else x)
 df_subset["Keywords"] = df_subset["Keywords"].apply(lambda x: ast.literal_eval(x) if type(x) == str else x)
@@ -32,7 +32,7 @@ df_subset['AbstractLength'] = df_subset['Abstract'].astype(str).map(len)
 ## SIF = https://openreview.net/pdf?id=SyK00v5xx, ICLR 2017
 df_subset = df_subset[df_subset["AbstractLength"]>50]
 docs = [_ for _ in df_subset['Abstract']] # can modify for different minimum (or max) character length
-nlp = spacy.load("en_core_web_sm", disable=("parser", "tagger", "ner"))
+nlp = spacy.load("en_core_web_sm", disable=("parser", "ner")) # "parser", "tagger", "ner"
 
 print("Number of docs in dataset: " + str(df_subset.shape[0]))
 print("Number of docs processed: " + str(len(docs))) # difference is dropped due to needing at least X characters; see docs above
@@ -108,15 +108,16 @@ else:
     # https://umap-learn.readthedocs.io/en/latest/parameters.html#n-neighbors
     # 2D embeddings
     baseline_emb_2d = umap.UMAP(
-        random_state=42, 
-        n_neighbors=10, 
-        min_dist=0.1, 
-        n_components=2, 
-        metric='cosine').fit(baseline_emb_300d)
+        # random_state=50, #42
+        n_neighbors=4, #10
+        min_dist=0.1, #0.1
+        n_components=2, #2
+        metric='cosine').fit(baseline_emb_300d) #cosine
 
 # Set GloVe embeddings in the dataframe
-df_subset["glove_embedding"] = list(baseline_emb_300d) if baseline_emb_300d is not None else None
-df_subset["glove_umap"] = list(baseline_emb_2d.embedding_) if baseline_emb_2d is not None else None
+df_subset["glove_embedding"] = [[float(i) for i in embed] for embed in baseline_emb_300d] if baseline_emb_300d is not None else None
+df_subset["glove_umap"] = [[float(i) for i in embed] for embed in baseline_emb_2d.embedding_] if baseline_emb_2d is not None else None
+
 print("GloVe done")
 
 # Specter
@@ -129,7 +130,12 @@ def getEmbeddings(batch):
     embeddings = result.last_hidden_state[:, 0, :]
     return list([list(i.detach().numpy()) for i in embeddings])
 
-title_abs = [d["Title"] + tokenizer.sep_token + d["Abstract"] for index,d in df_subset.iterrows()]
+title_abs = []
+for index, d in df_subset.iterrows():
+    if d["Title"] is None or str(d["Title"]) == "nan" or d["Abstract"] is None or str(d["Abstract"]) == "nan":
+        title_abs.append("")
+    else:
+        title_abs.append(d["Title"] + tokenizer.sep_token + d["Abstract"])
 
 # nD embeddings
 embeddings = []
@@ -139,7 +145,7 @@ for i in range(0, len(title_abs), 128):
 
 # 2D embeddings
 specter_emb_2d = umap.UMAP(
-    random_state=42, 
+    # random_state=42, 
     n_neighbors=10, 
     min_dist=0.1, 
     n_components=2, 
@@ -147,7 +153,7 @@ specter_emb_2d = umap.UMAP(
 specterUMap = [[float(i) for i in embed] for embed in specter_emb_2d.embedding_]
 
 # Set Specter embeddings in the dataframe
-df_subset["specter_embeddings"] = embeddings
+df_subset["specter_embedding"] = embeddings
 df_subset["specter_umap"] = specterUMap
 print("Specter done")
 
