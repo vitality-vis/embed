@@ -16,3 +16,5 @@ torch
 torchaudio
 torchvision
 urllib3<2.0
+langchain
+langchain-openai

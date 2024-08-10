@@ -15,6 +15,8 @@
 - `python -m pip install -r requirements.txt`
 - `python -m spacy download en_core_web_sm`
 - `python -m nltk.downloader popular`
+- Set `OPEN_AI_KEY` in `config.py`. 
+- `export TOKENIZERS_PARALLELISM=false`
 
 Note: `pip cache purge` might be needed sometimes to start fresh installation.
 

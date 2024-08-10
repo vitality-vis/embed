@@ -15,6 +15,8 @@ import ast
 import seaborn as sns
 from transformers import AutoTokenizer, AutoModel
 import config
+from langchain_openai import OpenAIEmbeddings
+
 
 # Read Data
 df_master = pd.read_csv(config.input_data_path, sep='\t')
@@ -124,7 +126,7 @@ print("GloVe done")
 tokenizer = AutoTokenizer.from_pretrained('allenai/specter')
 model = AutoModel.from_pretrained('allenai/specter')
 
-def getEmbeddings(batch):
+def get_specter_embeddings(batch):
     inputs = tokenizer(batch, padding=True, truncation=True, return_tensors="pt", max_length=512)
     result = model(**inputs)
     embeddings = result.last_hidden_state[:, 0, :]
@@ -138,10 +140,10 @@ for index, d in df_subset.iterrows():
         title_abs.append(d["Title"] + tokenizer.sep_token + d["Abstract"])
 
 # nD embeddings
-embeddings = []
+specter_embeddings = []
 for i in range(0, len(title_abs), 128):
     batch = title_abs[i:i+128]
-    embeddings += getEmbeddings(batch)
+    specter_embeddings += get_specter_embeddings(batch)
 
 # 2D embeddings
 specter_emb_2d = umap.UMAP(
@@ -149,13 +151,40 @@ specter_emb_2d = umap.UMAP(
     n_neighbors=10, 
     min_dist=0.1, 
     n_components=2, 
-    metric='cosine').fit(embeddings)
+    metric='cosine').fit(specter_embeddings)
 specterUMap = [[float(i) for i in embed] for embed in specter_emb_2d.embedding_]
 
 # Set Specter embeddings in the dataframe
-df_subset["specter_embedding"] = embeddings
+df_subset["specter_embedding"] = specter_embeddings
 df_subset["specter_umap"] = specterUMap
 print("Specter done")
+
+# ADA
+ada_embedding_func = OpenAIEmbeddings(
+    model='text-embedding-ada-002',
+    openai_api_key=config.OPEN_AI_KEY
+)
+
+# nD embeddings
+ada_embeddings = []
+for title_ab in title_abs:
+    ada_embeddings += [ada_embedding_func.embed_query(title_ab)]
+
+# 2D embeddings
+ada_emb_2d = umap.UMAP(
+    # random_state=42, 
+    n_neighbors=10, 
+    min_dist=0.1, 
+    n_components=2, 
+    metric='cosine').fit(ada_embeddings)
+adaUmap = [[float(i) for i in embed] for embed in ada_emb_2d.embedding_]
+
+
+# Set ADA embeddings in the dataframe
+df_subset["ada_embedding"] = ada_embeddings
+df_subset["ada_umap"] = adaUmap
+print("ADA done")
+
 
 # Save/Export the dataframe
 df_subset.to_csv(config.output_data_path, sep='\t')
